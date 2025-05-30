@@ -3862,3 +3862,76 @@ raisins
 onion
 yellow cake mix
 banana
+gochujang
+harissa paste
+tahini
+miso paste
+fish sauce
+oyster sauce
+hoisin sauce
+sambal oelek
+doubanjiang
+garam masala
+ras el hanout
+ras-el-hanout
+berbere
+sumac
+zaatar
+za atar
+dukkah
+furikake
+panko breadcrumbs
+tempeh
+seitan
+jackfruit
+plantain
+tamarind paste
+palm sugar
+kaffir lime leaves
+galangal
+lemongrass
+pandan leaves
+shiso leaves
+kombu
+nori
+wakame
+bonito flakes
+sake
+mirin
+shaoxing wine
+black bean sauce
+preserved lemons
+pomegranate molasses
+agar agar
+arrowroot powder
+cassava flour
+teff flour
+sorghum flour
+besan
+gram flour
+ghee
+paneer
+halloumi
+labneh
+kefir
+kimchi
+sauerkraut
+preserved vegetables
+fermented black beans
+century eggs
+thousand year eggs
+quail eggs
+duck eggs
+coconut aminos
+liquid aminos
+nutritional yeast
+aquafaba
+flax eggs
+chia eggs
+vegan butter
+plant milk
+oat milk
+cashew cream
+coconut cream
+full fat coconut milk
+light coconut milk
