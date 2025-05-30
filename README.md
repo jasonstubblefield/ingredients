@@ -24,6 +24,24 @@ You can use it from the command line! If you [download a release](https://github
 $ ingredients https://www.tasteofhome.com/recipes/banana-chocolate-chip-cookies/
 ```
 
+You can also provide HTML directly via stdin:
+
+```
+$ cat recipe.html | ingredients -stdin "My Recipe"
+```
+
+Or:
+
+```
+$ ingredients -stdin "My Recipe" < recipe.html
+```
+
+Example with test data:
+
+```
+$ cat testing/sites/www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/index.html | ingredients -stdin "Best Chocolate Chip Cookies"
+```
+
 ### Go library
 
 
