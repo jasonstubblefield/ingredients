@@ -1,0 +1,110 @@
+{
+    "ingredients": [
+        {
+            "name": "butter",
+            "measure": {
+                "amount": 1,
+                "name": "cup",
+                "cups": 1
+            },
+            "line": "1 cup butter, softened"
+        },
+        {
+            "name": "sugar",
+            "comment": "white",
+            "measure": {
+                "amount": 1,
+                "name": "cup",
+                "cups": 1
+            },
+            "line": "1 cup white sugar"
+        },
+        {
+            "name": "brown sugar",
+            "comment": "packed",
+            "measure": {
+                "amount": 1,
+                "name": "cup",
+                "cups": 1
+            },
+            "line": "1 cup packed brown sugar"
+        },
+        {
+            "name": "egg",
+            "measure": {
+                "amount": 2,
+                "name": "whole",
+                "cups": 0.25
+            },
+            "line": "2 eggs"
+        },
+        {
+            "name": "vanilla",
+            "measure": {
+                "amount": 2,
+                "name": "teaspoons",
+                "cups": 0.041666
+            },
+            "line": "2 teaspoons vanilla extract"
+        },
+        {
+            "name": "baking soda",
+            "measure": {
+                "amount": 1,
+                "name": "teaspoon",
+                "cups": 0.020833
+            },
+            "line": "1 teaspoon baking soda"
+        },
+        {
+            "name": "water",
+            "comment": "hot",
+            "measure": {
+                "amount": 2,
+                "name": "teaspoons",
+                "cups": 0.041666
+            },
+            "line": "2 teaspoons hot water"
+        },
+        {
+            "name": "salt",
+            "measure": {
+                "amount": 0.5,
+                "name": "teaspoon",
+                "cups": 0.0104165
+            },
+            "line": "1/2 teaspoon salt"
+        },
+        {
+            "name": "flour",
+            "comment": "all purpose",
+            "measure": {
+                "amount": 3,
+                "name": "cups",
+                "cups": 3
+            },
+            "line": "3 cups all-purpose flour"
+        },
+        {
+            "name": "chocolate chip",
+            "comment": "semisweet",
+            "measure": {
+                "amount": 2,
+                "name": "cups",
+                "cups": 2
+            },
+            "line": "2 cups semisweet chocolate chips"
+        },
+        {
+            "name": "walnut",
+            "comment": "chopped",
+            "measure": {
+                "amount": 1,
+                "name": "cup",
+                "cups": 1
+            },
+            "line": "1 cup chopped walnuts"
+        }
+    ],
+    "origin": "testing/sites/www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/index.html"
+}
