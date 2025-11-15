@@ -8,13 +8,129 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	log "github.com/schollz/logger"
 )
 
-// ConvertStringToNumber
+var (
+	reParentheses  = regexp.MustCompile(`(?s)\((.*)\)`)
+	reNonAlphaNum  = regexp.MustCompile("[^a-zA-Z0-9/.]+")
+	reNumberAtStart = regexp.MustCompile(`^\s*(\d+(?:\.\d+)?|\d+\s+\d+/\d+)`)
+)
+
+// Trie node for efficient pattern matching
+type trieNode struct {
+	children map[rune]*trieNode
+	isEnd    bool
+	value    string
+}
+
+// Trie for fast multi-pattern matching
+type Trie struct {
+	root *trieNode
+}
+
+// newTrie creates a new trie from a list of patterns
+func newTrie(patterns []string) *Trie {
+	t := &Trie{root: &trieNode{children: make(map[rune]*trieNode)}}
+	for _, pattern := range patterns {
+		t.insert(pattern)
+	}
+	return t
+}
+
+// insert adds a pattern to the trie
+func (t *Trie) insert(pattern string) {
+	node := t.root
+	for _, ch := range pattern {
+		if node.children[ch] == nil {
+			node.children[ch] = &trieNode{children: make(map[rune]*trieNode)}
+		}
+		node = node.children[ch]
+	}
+	node.isEnd = true
+	node.value = pattern
+}
+
+// findAll returns all pattern matches in the text with their positions
+// Implements greedy longest-match strategy like the original algorithm
+func (t *Trie) findAll(text string) []WordPosition {
+	var matches []WordPosition
+	runes := []rune(text)
+	used := make([]bool, len(runes)) // Track which positions are already matched
+
+	// Try to find matches starting at each position
+	for i := 0; i < len(runes); i++ {
+		if used[i] {
+			continue
+		}
+
+		// Find longest match starting at position i
+		node := t.root
+		longestMatch := ""
+		longestEnd := -1
+
+		for j := i; j < len(runes); j++ {
+			ch := runes[j]
+			if node.children[ch] == nil {
+				break
+			}
+			node = node.children[ch]
+			if node.isEnd {
+				longestMatch = node.value
+				longestEnd = j
+			}
+		}
+
+		// If we found a match, record it and mark positions as used
+		if longestMatch != "" {
+			matches = append(matches, WordPosition{
+				Word:     strings.TrimSpace(longestMatch),
+				Position: i,
+			})
+			// Mark these positions as used
+			for j := i; j <= longestEnd; j++ {
+				used[j] = true
+			}
+		}
+	}
+
+	// Sort by position
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].Position < matches[j].Position
+	})
+
+	return matches
+}
+
+var (
+	ingredientsTrie *Trie
+	measuresTrie    *Trie
+	numbersTrie     *Trie
+)
+
+var wordNumbers = map[string]float64{
+	"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4,
+	"five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+	"ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
+	"fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17,
+	"eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30,
+	"forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
+	"eighty": 80, "ninety": 90, "hundred": 100,
+	"a": 1, "an": 1, "couple": 2, "few": 3, "several": 3,
+	"half": 0.5, "quarter": 0.25,
+}
+
+// init builds the tries from corpus data for fast pattern matching
+func init() {
+	ingredientsTrie = newTrie(corpusIngredients)
+	measuresTrie = newTrie(corpusMeasures)
+	numbersTrie = newTrie(corpusNumbers)
+}
+
+// ConvertStringToNumber converts string numbers (including fractions and word forms) to float64
 func ConvertStringToNumber(s string) float64 {
+	// Handle unicode fractions
 	switch s {
 	case "½":
 		return 0.5
@@ -35,6 +151,13 @@ func ConvertStringToNumber(s string) float64 {
 	case "⅓":
 		return 1.0 / 3
 	}
+
+	// Handle word numbers
+	if val, ok := wordNumbers[strings.ToLower(strings.TrimSpace(s))]; ok {
+		return val
+	}
+
+	// Try to parse as float
 	v, _ := strconv.ParseFloat(s, 64)
 	return v
 }
@@ -138,17 +261,17 @@ func parseDecimal(s string) (r rational, err error) {
 
 // GetIngredientsInString returns the word positions of the ingredients
 func GetIngredientsInString(s string) (wordPositions []WordPosition) {
-	return getWordPositions(s, corpusIngredients)
+	return ingredientsTrie.findAll(s)
 }
 
 // GetNumbersInString returns the word positions of the numbers in the ingredient string
 func GetNumbersInString(s string) (wordPositions []WordPosition) {
-	return getWordPositions(s, corpusNumbers)
+	return numbersTrie.findAll(s)
 }
 
 // GetMeasuresInString returns the word positions of the measures in a ingredient string
 func GetMeasuresInString(s string) (wordPositions []WordPosition) {
-	return getWordPositions(s, corpusMeasures)
+	return measuresTrie.findAll(s)
 }
 
 // WordPosition shows a word and its position
@@ -157,25 +280,6 @@ func GetMeasuresInString(s string) (wordPositions []WordPosition) {
 type WordPosition struct {
 	Word     string
 	Position int
-}
-
-func getWordPositions(s string, corpus []string) (wordPositions []WordPosition) {
-	wordPositions = []WordPosition{}
-	for _, ing := range corpus {
-		if len(ing) > len(s) {
-			continue
-		}
-		pos := strings.Index(s, ing)
-		if pos > -1 {
-			s = strings.Replace(s, ing, strings.Repeat(" ", utf8.RuneCountInString(ing)), 1)
-			ing = strings.TrimSpace(ing)
-			wordPositions = append(wordPositions, WordPosition{ing, pos})
-		}
-	}
-	sort.Slice(wordPositions, func(i, j int) bool {
-		return wordPositions[i].Position < wordPositions[j].Position
-	})
-	return
 }
 
 // getOtherInBetweenPositions returns the word positions comment string in the ingredients
@@ -194,21 +298,26 @@ func getOtherInBetweenPositions(s string, pos1, pos2 WordPosition) (other string
 	return
 }
 
+// Replacer for common substitutions in SanitizeLine
+var sanitizeReplacer = strings.NewReplacer(
+	"⁄", "/",
+	" / ", "/",
+	"butter milk", "buttermilk",
+	"bicarbonate of soda", "baking soda",
+	"soda bicarbonate", "baking soda",
+	" one ", " 1 ",
+)
+
 // SanitizeLine removes parentheses, trims the line, converts to lower case,
 // replaces fractions with unicode and then does special conversion for ingredients (like eggs).
 func SanitizeLine(s string) string {
 	s = strings.ToLower(s)
-	s = strings.Replace(s, "⁄", "/", -1)
-	s = strings.Replace(s, " / ", "/", -1)
 
-	// special cases
-	s = strings.Replace(s, "butter milk", "buttermilk", -1)
-	s = strings.Replace(s, "bicarbonate of soda", "baking soda", -1)
-	s = strings.Replace(s, "soda bicarbonate", "baking soda", -1)
+	// Apply multiple replacements in one pass
+	s = sanitizeReplacer.Replace(s)
 
 	// remove parentheses
-	re := regexp.MustCompile(`(?s)\((.*)\)`)
-	for _, m := range re.FindAllStringSubmatch(s, -1) {
+	for _, m := range reParentheses.FindAllStringSubmatch(s, -1) {
 		s = strings.Replace(s, m[0], " ", 1)
 	}
 
@@ -220,15 +329,12 @@ func SanitizeLine(s string) string {
 	}
 
 	// remove non-alphanumeric
-	reg, _ := regexp.Compile("[^a-zA-Z0-9/.]+")
-	s = reg.ReplaceAllString(s, " ")
+	s = reNonAlphaNum.ReplaceAllString(s, " ")
 
 	// replace fractions with unicode fractions
 	for v := range corpusFractionNumberMap {
 		s = strings.Replace(s, corpusFractionNumberMap[v].fractionString, " "+v+" ", -1)
 	}
-
-	s = strings.Replace(s, " one ", " 1 ", -1)
 
 	return s
 }

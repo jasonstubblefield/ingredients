@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	"github.com/jasonstubblefield/ingredients"
@@ -37,7 +36,7 @@ func main() {
 		origin = os.Args[2]
 		
 		// Read HTML from stdin
-		htmlBytes, err := ioutil.ReadAll(os.Stdin)
+		htmlBytes, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			log.Errorf("failed to read from stdin: %v", err)
 			os.Exit(1)
@@ -80,7 +79,7 @@ func main() {
 		
 		if len(ing.Ingredients) > 0 {
 			b, _ := json.MarshalIndent(re, "", "    ")
-			ioutil.WriteFile(fname, b, 0644)
+			os.WriteFile(fname, b, 0644)
 			fmt.Printf("wrote '%s'\n", fname)
 		} else {
 			fmt.Printf("no ingredients for '%s'\n", origin)

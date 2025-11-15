@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -101,7 +100,7 @@ func processFile(folderName, pathToFile string) {
 	re.Origin = strings.TrimPrefix(re.Origin, "/")
 	if len(ing.Ingredients) > 0 {
 		b, _ := json.MarshalIndent(re, "", "    ")
-		ioutil.WriteFile(path.Join(folderName, fname), b, 0644)
+		os.WriteFile(path.Join(folderName, fname), b, 0644)
 		log.Debugf("wrote '%s'\n", pathToFile)
 	} else {
 		log.Debugf("no ingredients for '%s'\n", pathToFile)

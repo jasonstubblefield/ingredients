@@ -3453,3 +3453,5 @@ zucchini
 zucchini blossom
 zucchini flower
 zucchini noodle
+extra-firm tofu
+firm tofu

@@ -7,12 +7,15 @@ import (
 	"bytes"
 	// "encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/astappiev/microdata"
 	json "github.com/goccy/go-json"
 	"github.com/jinzhu/inflection"
 	log "github.com/schollz/logger"
@@ -44,6 +47,7 @@ type LineInfo struct {
 	AmountInString      []WordPosition `json:",omitempty"`
 	MeasureInString     []WordPosition `json:",omitempty"`
 	Ingredient          Ingredient     `json:",omitempty"`
+	Source              string         `json:",omitempty"` // "schema.org" or "dom"
 }
 
 // Ingredient is the basic struct for ingredients
@@ -89,13 +93,13 @@ func (r *Recipe) Save(fname string) (err error) {
 	if err != nil {
 		return
 	}
-	err = ioutil.WriteFile(fname, b, 0644)
+	err = os.WriteFile(fname, b, 0644)
 	return
 }
 
 // Load will load a recipe file
 func Load(fname string) (r *Recipe, err error) {
-	b, err := ioutil.ReadFile(fname)
+	b, err := os.ReadFile(fname)
 	if err != nil {
 		return
 	}
@@ -133,7 +137,7 @@ func ParseTextIngredients(text string) (ingredientList IngredientList, err error
 // NewFromFile generates a new parser from a HTML file
 func NewFromFile(fname string) (r *Recipe, err error) {
 	r = &Recipe{FileName: fname}
-	b, err := ioutil.ReadFile(fname)
+	b, err := os.ReadFile(fname)
 	r.FileContent = string(b)
 	err = r.parseHTML()
 	return
@@ -157,7 +161,7 @@ func NewFromURL(url string) (r *Recipe, err error) {
 		return
 	}
 	defer resp.Body.Close()
-	html, err := ioutil.ReadAll(resp.Body)
+	html, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
@@ -201,7 +205,12 @@ func (r *Recipe) parseRecipe() (rerr error) {
 	goodLines := make([]LineInfo, len(r.Lines))
 	j := 0
 	for _, lineInfo := range r.Lines {
-		if len(strings.TrimSpace(lineInfo.Line)) < 3 || len(strings.TrimSpace(lineInfo.Line)) > 150 {
+		// Be more lenient with length for schema.org ingredients (they can be verbose)
+		maxLength := 150
+		if lineInfo.Source == "schema.org" {
+			maxLength = 250
+		}
+		if len(strings.TrimSpace(lineInfo.Line)) < 3 || len(strings.TrimSpace(lineInfo.Line)) > maxLength {
 			continue
 		}
 		if strings.Contains(strings.ToLower(lineInfo.Line), "serving size") {
@@ -214,17 +223,21 @@ func (r *Recipe) parseRecipe() (rerr error) {
 		// singularlize
 		lineInfo.Ingredient.Measure = Measure{}
 
-		// get amount, continue if there is an error
+		// get amount, continue if there is an error (except for schema.org which allows no amount)
 		err := lineInfo.getTotalAmount()
 		if err != nil {
 			log.Tracef("[%s]: %s (%+v)", lineInfo.Line, err.Error(), lineInfo.AmountInString)
-			continue
+			// For non-schema.org sources, skip if no amount found
+			if lineInfo.Source != "schema.org" {
+				continue
+			}
 		}
 
 		// get ingredient, continue if its not found
 		err = lineInfo.getIngredient()
 		if err != nil {
 			log.Tracef("[%s]: %s", lineInfo.Line, err.Error())
+			// Even for schema.org, we need at least an ingredient name
 			continue
 		}
 
@@ -295,7 +308,7 @@ func (r *Recipe) parseRecipe() (rerr error) {
 				Measure: Measure{
 					Name:   line.Ingredient.Measure.Name,
 					Amount: line.Ingredient.Measure.Amount,
-					Cups:   line.Ingredient.Measure.Cups + line.Ingredient.Measure.Cups,
+					Cups:   line.Ingredient.Measure.Cups,
 				},
 			}
 		}
@@ -308,7 +321,78 @@ func (r *Recipe) parseRecipe() (rerr error) {
 	return
 }
 
+// extractLinesFromSchemaOrg attempts to extract ingredients from schema.org Recipe markup
+// It looks for JSON-LD or Microdata with @type: Recipe and extracts recipeIngredient property
+func extractLinesFromSchemaOrg(htmlS string) (lineInfos []LineInfo, err error) {
+	// Parse the HTML for microdata/JSON-LD
+	// The last two parameters are contentType and baseURL which we can leave empty
+	data, err := microdata.ParseHTML(strings.NewReader(htmlS), "", "")
+	if err != nil {
+		return nil, err
+	}
+
+	// Look for Recipe items
+	for _, item := range data.Items {
+		if item.IsOfSchemaType("Recipe") {
+			// Extract recipeIngredient properties (note: GetProperties returns all values for this property)
+			ingredients, ok := item.GetProperties("recipeIngredient")
+			if !ok || len(ingredients) == 0 {
+				log.Tracef("recipeIngredient property not found or empty")
+				continue
+			}
+
+			log.Tracef("found %d recipeIngredient values", len(ingredients))
+
+			// Convert ingredient values to strings
+			var ingredientStrings []string
+			for _, ing := range ingredients {
+				if str, ok := ing.(string); ok {
+					ingredientStrings = append(ingredientStrings, str)
+				} else {
+					log.Tracef("skipping non-string ingredient: %T = %+v", ing, ing)
+				}
+			}
+
+			if len(ingredientStrings) == 0 {
+				log.Tracef("no string ingredients found")
+				continue
+			}
+
+			// Convert ingredient strings to LineInfo and populate analysis fields
+			for _, ingStr := range ingredientStrings {
+				sanitized := SanitizeLine(ingStr)
+				lineInfo := LineInfo{
+					LineOriginal:        ingStr,
+					Line:                sanitized,
+					IngredientsInString: GetIngredientsInString(sanitized),
+					AmountInString:      GetNumbersInString(sanitized),
+					MeasureInString:     GetMeasuresInString(sanitized),
+					Source:              "schema.org",
+				}
+				lineInfos = append(lineInfos, lineInfo)
+			}
+
+			// If we found ingredients, return them
+			if len(lineInfos) > 0 {
+				log.Tracef("extracted %d ingredients from schema.org Recipe", len(lineInfos))
+				return lineInfos, nil
+			}
+		}
+	}
+
+	// No Recipe found or no ingredients
+	return nil, fmt.Errorf("no schema.org Recipe with ingredients found")
+}
+
 func getIngredientLinesInHTML(htmlS string) (lineInfos []LineInfo, err error) {
+	// First try to extract from schema.org structured data
+	schemaLineInfos, schemaErr := extractLinesFromSchemaOrg(htmlS)
+	if schemaErr == nil && len(schemaLineInfos) > 2 {
+		log.Trace("using schema.org Recipe ingredients")
+		return schemaLineInfos, nil
+	}
+
+	// Fall back to HTML parsing if schema.org extraction failed
 	doc, err := html.Parse(bytes.NewReader([]byte(htmlS)))
 	if err != nil {
 		return
@@ -445,6 +529,7 @@ func scoreLine(line string) (score int, lineInfo LineInfo) {
 	lineInfo.IngredientsInString = GetIngredientsInString(lineInfo.Line)
 	lineInfo.AmountInString = GetNumbersInString(lineInfo.Line)
 	lineInfo.MeasureInString = GetMeasuresInString(lineInfo.Line)
+	lineInfo.Source = "dom"
 	if len(lineInfo.IngredientsInString) == 2 && len(lineInfo.IngredientsInString[1].Word) > len(lineInfo.IngredientsInString[0].Word) {
 		lineInfo.IngredientsInString[0] = lineInfo.IngredientsInString[1]
 	}
@@ -531,6 +616,8 @@ func (lineInfo *LineInfo) getTotalAmount() (err error) {
 	lastPosition := -1
 	totalAmount := 0.0
 	wps := lineInfo.AmountInString
+
+	// Try corpus-based number detection first
 	for i := range wps {
 		wps[i].Word = strings.TrimSpace(wps[i].Word)
 		if lastPosition == -1 {
@@ -540,11 +627,36 @@ func (lineInfo *LineInfo) getTotalAmount() (err error) {
 		}
 		lastPosition = wps[i].Position + len(wps[i].Word)
 	}
+
+	// If corpus didn't find numbers, try regex (for numbers >20 not in corpus)
+	if totalAmount == 0 {
+		// Match integers and decimals at the start of the line
+		matches := reNumberAtStart.FindStringSubmatch(lineInfo.Line)
+		if len(matches) > 1 {
+			numStr := strings.TrimSpace(matches[1])
+			// Try to parse as float first
+			if val, parseErr := strconv.ParseFloat(numStr, 64); parseErr == nil {
+				totalAmount = val
+			} else {
+				// Try to convert using existing converter for fractions
+				totalAmount = ConvertStringToNumber(numStr)
+			}
+		}
+	}
+
 	if totalAmount == 0 && strings.Contains(lineInfo.Line, "whole") {
 		totalAmount = 1
 	}
+
+	// For schema.org ingredients, allow zero amounts (e.g., "salt" or "to taste")
 	if totalAmount == 0 {
-		err = fmt.Errorf("no amount found")
+		if lineInfo.Source == "schema.org" {
+			// Set amount to 0 but don't return error - we'll keep the ingredient
+			lineInfo.Ingredient.Measure.Amount = 0
+			err = nil
+		} else {
+			err = fmt.Errorf("no amount found")
+		}
 	} else {
 		lineInfo.Ingredient.Measure.Amount = totalAmount
 	}

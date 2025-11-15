@@ -103,7 +103,7 @@ var ts = []URLIngredients{
 	},
 	{
 		"https://cakebycourtney.com/soft-chewy-chocolate-chip-cookies/",
-		[]string{"1 cup butter", "1 cup sugar", "1 cup brown sugar", "2 whole egg", "1 teaspoon vanilla", "3 1/2 cups flour", "1 teaspoon baking soda", "1 teaspoon baking powder", "1 teaspoon salt", "2 cups chocolate chip"},
+		[]string{"1 cup butter", "1 cup sugar", "1 cup brown sugar", "2 whole egg", "1 teaspoon vanilla", "3 1/2 cups flour", "1 teaspoon baking soda", "1 teaspoon baking powder", "1 teaspoon salt", "2 cups dark chocolate"},
 	},
 	{
 		"https://www.foodnetwork.com/recipes/dave-lieberman/noodle-kugel-recipe-1946564",
@@ -356,4 +356,53 @@ func TestJSON2(t *testing.T) {
 1/2 teaspoon cinnamon`
 	assert.Equal(t, strings.TrimSpace(fmt.Sprint(r.IngredientList())), ingredients)
 
+}
+
+// Benchmark tests for performance-critical functions
+func BenchmarkGetIngredientsInString(b *testing.B) {
+	testString := " 2 cups all purpose flour with chocolate chips and vanilla extract "
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GetIngredientsInString(testString)
+	}
+}
+
+func BenchmarkGetNumbersInString(b *testing.B) {
+	testString := " 2 1/2 cups flour "
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GetNumbersInString(testString)
+	}
+}
+
+func BenchmarkGetMeasuresInString(b *testing.B) {
+	testString := " 2 tablespoons or 1/4 cup  "
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GetMeasuresInString(testString)
+	}
+}
+
+func BenchmarkSanitizeLine(b *testing.B) {
+	testString := "2½ cups (300g) all-purpose flour, sifted"
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		SanitizeLine(testString)
+	}
+}
+
+func BenchmarkFullRecipeParsing(b *testing.B) {
+	testHTML := `<html><body>
+		<div>
+			<p>2 cups flour</p>
+			<p>1 cup sugar</p>
+			<p>1/2 cup butter</p>
+			<p>2 eggs</p>
+			<p>1 teaspoon vanilla</p>
+		</div>
+	</body></html>`
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		NewFromHTML("test", testHTML)
+	}
 }

@@ -3,15 +3,34 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
+
+	"github.com/jinzhu/inflection"
 )
 
 func check(e error) {
 	if e != nil {
 		panic(e)
+	}
+}
+
+// addIngredientWithPlural adds an ingredient and its proper plural form to the map
+func addIngredientWithPlural(ingredientSizes map[string]int, ing string) {
+	ing = strings.TrimSpace(ing)
+	if len(ing) == 0 {
+		return
+	}
+
+	// Add singular form
+	ingredientSizes[ing] = len(ing)
+
+	// Add plural form using proper inflection
+	plural := inflection.Plural(ing)
+	// Only add if plural is different from singular
+	if plural != ing {
+		ingredientSizes[plural] = len(plural)
 	}
 }
 
@@ -28,7 +47,7 @@ func main() {
 
 	// MAKE HERBS
 	var herbList []string
-	b, err = ioutil.ReadFile("corpus/herbs.json")
+	b, err = os.ReadFile("corpus/herbs.json")
 	if err != nil {
 		panic(err)
 	}
@@ -52,7 +71,7 @@ func main() {
 
 	// MAKE FRUITS
 	var fruitList []string
-	b, err = ioutil.ReadFile("corpus/fruits.json")
+	b, err = os.ReadFile("corpus/fruits.json")
 	if err != nil {
 		panic(err)
 	}
@@ -76,7 +95,7 @@ func main() {
 
 	// MAKE VEGETABLES
 	var vegetableList []string
-	b, err = ioutil.ReadFile("corpus/vegetables.json")
+	b, err = os.ReadFile("corpus/vegetables.json")
 	if err != nil {
 		panic(err)
 	}
@@ -98,43 +117,50 @@ func main() {
 	}
 	f.WriteString("}\n\n")
 
+	// MAKE PROTEINS
+	var proteinList []string
+	b, err = os.ReadFile("corpus/proteins.json")
+	if err != nil {
+		panic(err)
+	}
+	if json.Unmarshal(b, &proteinList) != nil {
+		panic("could not unmarshal")
+	}
+	f.WriteString(`var proteinMap = map[string]struct{}{` + "\n")
+	pl = make(pairList, len(proteinList))
+	i = 0
+	for _, k := range proteinList {
+		pl[i] = pair{k, len(k)}
+		i++
+	}
+	sort.Slice(pl, func(i, j int) bool {
+		return pl[i].Key < pl[j].Key
+	})
+	for _, p := range pl {
+		f.WriteString(fmt.Sprintf(`"%s": {},`, p.Key) + "\n")
+	}
+	f.WriteString("}\n\n")
+
 	// MAIN INGREDIENT LIST
 	// sort the ingredient corpus by the length of each term
 	// and then by alphabetizing
-	b, err = ioutil.ReadFile("corpus/ingredients.txt")
+	b, err = os.ReadFile("corpus/ingredients.txt")
 	corpusIngredients := strings.Split(string(b), "\n")
 	ingredientSizes := make(map[string]int)
 	for _, ing := range corpusIngredients {
-		ing = strings.TrimSpace(ing)
-		if len(ing) == 0 {
-			continue
-		}
-		ingredientSizes[ing] = len(ing)
-		ingredientSizes[ing+"s"] = len(ing) + 1
+		addIngredientWithPlural(ingredientSizes, ing)
 	}
 	for _, ing := range fruitList {
-		ing = strings.TrimSpace(ing)
-		if len(ing) == 0 {
-			continue
-		}
-		ingredientSizes[ing] = len(ing)
-		ingredientSizes[ing+"s"] = len(ing) + 1
+		addIngredientWithPlural(ingredientSizes, ing)
 	}
 	for _, ing := range herbList {
-		ing = strings.TrimSpace(ing)
-		if len(ing) == 0 {
-			continue
-		}
-		ingredientSizes[ing] = len(ing)
-		ingredientSizes[ing+"s"] = len(ing) + 1
+		addIngredientWithPlural(ingredientSizes, ing)
 	}
 	for _, ing := range vegetableList {
-		ing = strings.TrimSpace(ing)
-		if len(ing) == 0 {
-			continue
-		}
-		ingredientSizes[ing] = len(ing)
-		ingredientSizes[ing+"s"] = len(ing) + 1
+		addIngredientWithPlural(ingredientSizes, ing)
+	}
+	for _, ing := range proteinList {
+		addIngredientWithPlural(ingredientSizes, ing)
 	}
 
 	pl = make(pairList, len(ingredientSizes))
@@ -181,7 +207,7 @@ func main() {
 	f.Sync()
 
 	// MAKE NUMBERS
-	b, err = ioutil.ReadFile("corpus/numbers.txt")
+	b, err = os.ReadFile("corpus/numbers.txt")
 	corpusNumbers := strings.Split(string(b), "\n")
 	for v := range corpusFractionNumberMap {
 		corpusNumbers = append(corpusNumbers, v)
@@ -199,7 +225,7 @@ func main() {
 	f.Sync()
 
 	// MAKE DIRECTIONS CORPUS
-	b, err = ioutil.ReadFile("corpus/directions_pos.txt")
+	b, err = os.ReadFile("corpus/directions_pos.txt")
 	corpusDirections := strings.Fields(string(b))
 	corpusDirectionsMap := make(map[string]struct{})
 	for _, c := range corpusDirections {
@@ -222,7 +248,7 @@ func main() {
 	f.Sync()
 
 	// MAKE DIRECTIONS NEG CORPUS
-	b, err = ioutil.ReadFile("corpus/directions_neg.txt")
+	b, err = os.ReadFile("corpus/directions_neg.txt")
 	corpusDirections = strings.Fields(string(b))
 	corpusDirectionsMap = make(map[string]struct{})
 	for _, c := range corpusDirections {
@@ -281,7 +307,7 @@ func main() {
 
 	// MAKE DENSITIES
 	var densities map[string]float64
-	b, err = ioutil.ReadFile("corpus/densities.json")
+	b, err = os.ReadFile("corpus/densities.json")
 	if err != nil {
 		panic(err)
 	}
