@@ -29,38 +29,75 @@ func getCacheDir() (string, error) {
 func main() {
 	log.SetLevel("error")
 
-	// Reorder args to put flags first (Go's flag package requires this)
-	// This allows users to put flags anywhere: "ingredients url -o file" or "ingredients -o file url"
-	var reorderedArgs []string
-	var positionalArgs []string
-	skipNext := false
-	for i := 1; i < len(os.Args); i++ {
-		if skipNext {
-			skipNext = false
-			continue
-		}
-		arg := os.Args[i]
-		if arg == "-o" || arg == "--o" {
-			if i+1 < len(os.Args) {
-				reorderedArgs = append(reorderedArgs, arg, os.Args[i+1])
-				skipNext = true
-			}
-		} else if !skipNext {
-			positionalArgs = append(positionalArgs, arg)
+	// Check for -stdin mode early (before flag parsing)
+	isStdinMode := false
+	for _, arg := range os.Args[1:] {
+		if arg == "-stdin" || arg == "--stdin" {
+			isStdinMode = true
+			break
 		}
 	}
-	os.Args = append([]string{os.Args[0]}, append(reorderedArgs, positionalArgs...)...)
 
-	// Define flags
-	outputFile := flag.String("o", "", "save output to file")
-	flag.Parse()
+	// For stdin mode, manually extract arguments to avoid flag parsing issues
+	var outputFile *string
+	var args []string
 
-	// Get non-flag arguments
-	args := flag.Args()
-	if len(args) < 1 {
-		log.Error("usage: ingredients [file/url] [-o output.json]")
-		log.Error("       ingredients -stdin [name] [-o output.json]")
-		os.Exit(1)
+	if isStdinMode {
+		// Parse manually for stdin mode
+		outputFileVal := ""
+		outputFile = &outputFileVal
+		skipNext := false
+		for i := 1; i < len(os.Args); i++ {
+			if skipNext {
+				skipNext = false
+				continue
+			}
+			arg := os.Args[i]
+			if arg == "-o" && i+1 < len(os.Args) {
+				*outputFile = os.Args[i+1]
+				skipNext = true
+			} else {
+				args = append(args, arg)
+			}
+		}
+		if len(args) < 2 {
+			log.Error("usage: ingredients -stdin [name] [-o output.json]")
+			os.Exit(1)
+		}
+	} else {
+		// Reorder args to put flags first (Go's flag package requires this)
+		// This allows users to put flags anywhere: "ingredients url -o file" or "ingredients -o file url"
+		var reorderedArgs []string
+		var positionalArgs []string
+		skipNext := false
+		for i := 1; i < len(os.Args); i++ {
+			if skipNext {
+				skipNext = false
+				continue
+			}
+			arg := os.Args[i]
+			if arg == "-o" || arg == "--o" {
+				if i+1 < len(os.Args) {
+					reorderedArgs = append(reorderedArgs, arg, os.Args[i+1])
+					skipNext = true
+				}
+			} else if !skipNext {
+				positionalArgs = append(positionalArgs, arg)
+			}
+		}
+		os.Args = append([]string{os.Args[0]}, append(reorderedArgs, positionalArgs...)...)
+
+		// Define flags
+		outputFile = flag.String("o", "", "save output to file")
+		flag.Parse()
+
+		// Get non-flag arguments
+		args = flag.Args()
+		if len(args) < 1 {
+			log.Error("usage: ingredients [file/url] [-o output.json]")
+			log.Error("       ingredients -stdin [name] [-o output.json]")
+			os.Exit(1)
+		}
 	}
 
 	var r *ingredients.Recipe
