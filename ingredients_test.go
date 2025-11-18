@@ -43,15 +43,15 @@ var ts = []URLIngredients{
 	//
 	{
 		"https://www.wifemamafoodie.com/cinnamon-rolls/index.html",
-		[]string{"2 1/4 teaspoon yeast", "1 teaspoon salt", "1/3 cup avocado oil", "1/4 cup maple syrup"},
+		[]string{"2 1/4 teaspoon yeast", "1 teaspoon salt", "1/3 cup avocado oil", "1/4 cup maple syrup", "3/4 cup coconut sugar", "1 tablespoon cinnamon", "4 oz. cream cheese", "1 tablespoon butter", "2 tablespoons maple syrup", "1/2 cup butter", "1 cup powdered sugar", "1 teaspoon vanilla", "1 tablespoons milk"},
 	},
 	{
 		"https://www.goldenmalted.com/gingerbread-waffle-recipe",
-		[]string{"2 cups water", "4 teaspoons molasses", "1/2 teaspoon cinnamon", "1/8 teaspoon clove", "1 1/2 cups water"},
+		[]string{"2 cups pancake mix", "4 teaspoons molasses", "1/2 teaspoon cinnamon", "1/8 teaspoon clove", "1 1/2 cups water"},
 	},
 	{
 		"https://www.charismashah.com/cache1/2017/8/14/chai-belgian-waffles",
-		[]string{"1 c flour", "1/4 c wheat flour", "1/2 c brown rice", "1 tsp baking powder", "1/2 tsp baking soda", "1/2 tsp salt", "1 1/3 c buttermilk", "3 whole egg", "3 tbs sugar", "1/2 c milk", "2 tsp chai", "1 tsp vanilla", "1/2 cup heath bar"},
+		[]string{"2 tsp chai", "1 c flour", "1/4 c wheat flour", "1/2 c brown rice", "1 tsp baking powder", "1/2 tsp baking soda", "1/2 tsp salt", "1 1/3 c buttermilk", "3 whole egg", "3 tbs sugar", "1/2 c milk", "2 tsp chai", "1 tsp vanilla", "1/2 cup heath bar", "2 whole gala apple", "1 tbs butter", "1 1/2 tbs brown sugar"},
 	},
 	{
 		"https://www.kingarthurbaking.com/recipes/simply-perfect-pancakes-recipe",
@@ -59,15 +59,15 @@ var ts = []URLIngredients{
 	},
 	{
 		"https://www.truvia.com/recipes/chocolate-chip-banana-cookies",
-		[]string{"1/3 cup butter", "1/4 cup sugar", "1 whole egg", "1/2 cup banana", "1/2 teaspoon vanilla", "1 cup flour", "1 teaspoon baking powder", "1/4 teaspoon salt", "1/8 teaspoon baking soda", "1 cup chocolate chip", "1/3 cup butter", "1/4 cup sugar", "1 whole egg", "1/2 cup banana", "1/2 teaspoon vanilla", "1 cup flour", "1 teaspoon baking powder", "1/4 teaspoon salt", "1/8 teaspoon baking soda", "1 cup chocolate chip"},
+		[]string{"1/3 cup butter", "1/4 cup sugar", "1 whole egg", "1/2 cup banana", "1/2 teaspoon vanilla", "1 cup flour", "1 teaspoon baking powder", "1/4 teaspoon salt", "1/8 teaspoon baking soda", "1 cup chocolate chip"},
 	},
 	{
 		"https://cooking.nytimes.com/recipes/1012904-banana-everything-cookies",
-		[]string{"1 whole banana", "1/3 cup canola oil", "2/3 cup sugar", "1 teaspoon vanilla", "3/4 cup flour", "1/2 teaspoon baking soda", "1/4 teaspoon salt", "1/4 teaspoon cinnamon", "2 cups oatmeal", "1/2 cup walnut", "1/2 cup chocolate chip"},
+		[]string{"0 whole cooking oil", "1 whole banana", "1/3 cup canola oil", "2/3 cup sugar", "1 teaspoon vanilla", "3/4 cup flour", "1/2 teaspoon baking soda", "1/4 teaspoon salt", "1/4 teaspoon cinnamon", "2 cups oatmeal", "1/2 cup walnut", "1/2 cup chocolate chip"},
 	},
 	{
 		"https://www.realmomnutrition.com/banana-bread-with-chocolate-chips/index.html",
-		[]string{"3 whole banana", "2 whole egg", "1/2 cup canola oil", "1/2 cup applesauce", "3/4 cup brown sugar", "1 1/2 cups pastry flour", "1 teaspoon baking soda", "1/2 teaspoon salt", "1/4 teaspoon cinnamon", "1/4 teaspoon baking powder", "1/2 cup chocolate chip"},
+		[]string{"3 whole banana", "2 whole egg", "1/2 cup canola oil", "1/2 cup applesauce", "3/4 cup brown sugar", "1 1/2 cups wheat", "1 teaspoon baking soda", "1/2 teaspoon salt", "1/4 teaspoon cinnamon", "1/4 teaspoon baking powder", "1/2 cup chocolate chip"},
 	},
 	{
 		"https://lifemadesimplebakes.com/banana-chocolate-chip-cookies/",
@@ -75,7 +75,7 @@ var ts = []URLIngredients{
 	},
 	{
 		"https://www.allrecipes.com/recipe/234172/chocolate-chip-banana-cookies/",
-		[]string{"1/2 cup walnut", "1 cup flour", "1/2 cup whole wheat flour", "1 teaspoon salt", "1/2 teaspoon baking soda", "1/2 cup brown sugar", "1/2 cup sugar", "1 whole egg", "1/2 cup banana", "1 cup oat", "8 ounces chocolate chip"},
+		[]string{"1/2 cup walnut", "1 cup flour", "1/2 cup whole wheat flour", "1 teaspoon salt", "1/2 teaspoon baking soda", "3/4 cup butter", "1/2 cup brown sugar", "1/2 cup sugar", "1 whole egg", "1 1/2 teaspoons vanilla", "1/2 cup banana", "1 cup oat", "8 ounces chocolate chip"},
 	},
 	{
 		"https://www.bonappetit.com/recipe/bas-best-chocolate-chip-cookies",
@@ -83,7 +83,7 @@ var ts = []URLIngredients{
 	},
 	{
 		"https://pinchofyum.com/the-best-soft-chocolate-chip-cookies",
-		[]string{"8 tablespoon butter", "1/2 cup sugar", "1/4 cup brown sugar", "1 teaspoon vanilla", "1 whole egg", "1 1/2 cup flour", "1/2 teaspoon baking soda", "1/4 teaspoon salt", "3/4 cup chocolate chip"},
+		[]string{"8 tablespoons butter", "1/2 cup sugar", "1/4 cup brown sugar", "1 teaspoon vanilla", "1 whole egg", "1 1/2 cups flour", "1/2 teaspoon baking soda", "1/4 teaspoon salt", "3/4 cup chocolate chip"},
 	},
 	{
 		"https://www.modernhoney.com/the-best-chocolate-chip-cookies/",
@@ -91,7 +91,7 @@ var ts = []URLIngredients{
 	},
 	{
 		"https://laurenslatest.com/actually-perfect-chocolate-chip-cookies/",
-		[]string{"3/4 cup butter", "1 cup brown sugar", "1/2 cup sugar", "1 whole egg yolk", "2 teaspoons vanilla", "2 cups flour", "1/2 teaspoon baking soda", "1/2 teaspoon salt", "1 cup chocolate chip", "1 cup chocolate chip"},
+		[]string{"3/4 cup butter", "1 cup brown sugar", "1/2 cup sugar", "1 whole egg yolk", "2 teaspoons vanilla", "2 cups flour", "1/2 teaspoon baking soda", "1/2 teaspoon salt", "1 cup chocolate chip", "1 cup milk chocolate"},
 	},
 	{
 		"https://www.allrecipes.com/recipe/10813/best-chocolate-chip-cookies/",

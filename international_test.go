@@ -23,11 +23,10 @@ func TestInternationalIngredients(t *testing.T) {
 	}
 	
 	for _, test := range tests {
-		result, err := NewFromString(test.input)
+		ingredientList, err := ParseTextIngredients(test.input)
 		assert.NoError(t, err)
-		ingredients := result.IngredientList()
-		if len(ingredients.Ingredients) > 0 {
-			assert.Equal(t, test.expected, ingredients.Ingredients[0].Name, 
+		if len(ingredientList.Ingredients) > 0 {
+			assert.Equal(t, test.expected, ingredientList.Ingredients[0].Name,
 				"Failed to parse: %s", test.input)
 		}
 	}
@@ -44,12 +43,11 @@ func TestInternationalDensities(t *testing.T) {
 	}
 	
 	for _, test := range tests {
-		result, err := NewFromString(test.input)
+		ingredientList, err := ParseTextIngredients(test.input)
 		assert.NoError(t, err)
-		ingredients := result.IngredientList()
-		if len(ingredients.Ingredients) > 0 {
-			assert.InDelta(t, test.expectedCups, 
-				ingredients.Ingredients[0].Measure.Cups, 0.1,
+		if len(ingredientList.Ingredients) > 0 {
+			assert.InDelta(t, test.expectedCups,
+				ingredientList.Ingredients[0].Measure.Cups, 0.1,
 				"Failed conversion for: %s", test.input)
 		}
 	}

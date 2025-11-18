@@ -283,6 +283,7 @@ type WordPosition struct {
 }
 
 // getOtherInBetweenPositions returns the word positions comment string in the ingredients
+// Note: positions are rune indices (not byte indices) since they come from trie.findAll
 func getOtherInBetweenPositions(s string, pos1, pos2 WordPosition) (other string) {
 	if pos1.Position > pos2.Position {
 		return
@@ -293,7 +294,19 @@ func getOtherInBetweenPositions(s string, pos1, pos2 WordPosition) (other string
 			log.Error(r)
 		}
 	}()
-	other = s[pos1.Position+len(pos1.Word)+1 : pos2.Position]
+
+	// Convert string to runes since positions are rune-based
+	runes := []rune(s)
+
+	// Calculate rune positions for extraction
+	start := pos1.Position + len([]rune(pos1.Word)) + 1
+	end := pos2.Position
+
+	if end > len(runes) || start > len(runes) || start < 0 || end < 0 {
+		return ""
+	}
+
+	other = string(runes[start:end])
 	other = strings.TrimSpace(other)
 	return
 }
@@ -311,29 +324,41 @@ var sanitizeReplacer = strings.NewReplacer(
 // SanitizeLine removes parentheses, trims the line, converts to lower case,
 // replaces fractions with unicode and then does special conversion for ingredients (like eggs).
 func SanitizeLine(s string) string {
+	// Use builder for efficient string construction
+	var builder strings.Builder
+	builder.Grow(len(s) + 20) // Pre-allocate with some extra space
+
 	s = strings.ToLower(s)
 
 	// Apply multiple replacements in one pass
 	s = sanitizeReplacer.Replace(s)
 
-	// remove parentheses
-	for _, m := range reParentheses.FindAllStringSubmatch(s, -1) {
-		s = strings.Replace(s, m[0], " ", 1)
+	// Remove parentheses using ReplaceAll instead of loop
+	s = reParentheses.ReplaceAllString(s, " ")
+
+	// Add spacing and trim
+	builder.WriteString(" ")
+	builder.WriteString(strings.TrimSpace(s))
+	builder.WriteString(" ")
+	s = builder.String()
+
+	// Replace unicode fractions with fraction strings (e.g., ½ → 1/2)
+	// This normalizes both unicode input and allows the regex cleanup
+	for unicode, fn := range corpusFractionNumberMap {
+		if strings.Contains(s, unicode) {
+			s = strings.ReplaceAll(s, unicode, " "+fn.fractionString+" ")
+		}
 	}
 
-	s = " " + strings.TrimSpace(s) + " "
-
-	// replace unicode fractions with fractions
-	for v := range corpusFractionNumberMap {
-		s = strings.Replace(s, v, " "+corpusFractionNumberMap[v].fractionString+" ", -1)
-	}
-
-	// remove non-alphanumeric
+	// Remove non-alphanumeric characters (preserving / and .)
 	s = reNonAlphaNum.ReplaceAllString(s, " ")
 
-	// replace fractions with unicode fractions
-	for v := range corpusFractionNumberMap {
-		s = strings.Replace(s, corpusFractionNumberMap[v].fractionString, " "+v+" ", -1)
+	// Replace fraction strings back to unicode (e.g., 1/2 → ½)
+	// This normalizes both "1/2" and "½" inputs to consistent "½" output
+	for unicode, fn := range corpusFractionNumberMap {
+		if strings.Contains(s, fn.fractionString) {
+			s = strings.ReplaceAll(s, fn.fractionString, " "+unicode+" ")
+		}
 	}
 
 	return s

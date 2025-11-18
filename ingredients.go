@@ -5,7 +5,7 @@ package ingredients
 
 import (
 	"bytes"
-	// "encoding/json"
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -125,7 +125,7 @@ func ParseTextIngredients(text string) (ingredientList IngredientList, err error
 		i++
 	}
 	_, r.Lines = scoreLines(goodLines)
-	err = r.parseRecipe()
+	err = r.parseRecipe(false) // Don't enforce minimum for text parsing
 	if err != nil {
 		return
 	}
@@ -151,19 +151,32 @@ func NewFromString(htmlString string) (r *Recipe, err error) {
 	return
 }
 
-// NewFromURL generates a new parser from a url
+// NewFromURL generates a new parser from a url with a default 10-second timeout.
+// For custom timeout or cancellation support, use NewFromURLWithContext.
 func NewFromURL(url string) (r *Recipe, err error) {
-	client := http.Client{
-		Timeout: 10 * time.Second,
-	}
-	resp, err := client.Get(url)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return NewFromURLWithContext(ctx, url)
+}
+
+// NewFromURLWithContext generates a new parser from a url with context support.
+// This allows for custom timeouts and request cancellation.
+func NewFromURLWithContext(ctx context.Context, url string) (r *Recipe, err error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return
+		return nil, err
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
+
 	html, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	return NewFromHTML(url, string(html))
@@ -197,11 +210,11 @@ func (r *Recipe) parseHTML() (rerr error) {
 	}
 
 	r.Lines, rerr = getIngredientLinesInHTML(r.FileContent)
-	return r.parseRecipe()
+	return r.parseRecipe(true) // Enforce minimum 3 ingredients for HTML recipes
 
 }
 
-func (r *Recipe) parseRecipe() (rerr error) {
+func (r *Recipe) parseRecipe(enforceMinimum bool) (rerr error) {
 	goodLines := make([]LineInfo, len(r.Lines))
 	j := 0
 	for _, lineInfo := range r.Lines {
@@ -268,6 +281,12 @@ func (r *Recipe) parseRecipe() (rerr error) {
 		j++
 	}
 	r.Lines = goodLines[:j]
+
+	// Ensure we still have at least 2 ingredients after filtering (only for HTML recipes)
+	if enforceMinimum && len(r.Lines) < 2 {
+		rerr = fmt.Errorf("insufficient ingredients found: %d (minimum 2 required)", len(r.Lines))
+		return
+	}
 
 	rerr = r.ConvertIngredients()
 	if rerr != nil {
@@ -387,7 +406,7 @@ func extractLinesFromSchemaOrg(htmlS string) (lineInfos []LineInfo, err error) {
 func getIngredientLinesInHTML(htmlS string) (lineInfos []LineInfo, err error) {
 	// First try to extract from schema.org structured data
 	schemaLineInfos, schemaErr := extractLinesFromSchemaOrg(htmlS)
-	if schemaErr == nil && len(schemaLineInfos) > 2 {
+	if schemaErr == nil && len(schemaLineInfos) >= 2 {
 		log.Trace("using schema.org Recipe ingredients")
 		return schemaLineInfos, nil
 	}
@@ -407,7 +426,7 @@ func getIngredientLinesInHTML(htmlS string) (lineInfos []LineInfo, err error) {
 			if isScript {
 				// try to capture JSON and if successful, do a hard exit
 				lis, errJSON := extractLinesFromJavascript(c.Data)
-				if errJSON == nil && len(lis) > 2 {
+				if errJSON == nil && len(lis) >= 2 {
 					log.Trace("got ingredients from JSON")
 					*lineInfos = lis
 					done = true
@@ -425,7 +444,7 @@ func getIngredientLinesInHTML(htmlS string) (lineInfos []LineInfo, err error) {
 				score += scoreOfLine
 			}
 		}
-		if score > 2 && len(childrenLineInfo) < 25 && len(childrenLineInfo) > 2 {
+		if score > 2 && len(childrenLineInfo) < 25 && len(childrenLineInfo) >= 2 {
 			*lineInfos = append(*lineInfos, childrenLineInfo...)
 			for _, child := range childrenLineInfo {
 				log.Tracef("[%s]", child.LineOriginal)
@@ -530,8 +549,17 @@ func scoreLine(line string) (score int, lineInfo LineInfo) {
 	lineInfo.AmountInString = GetNumbersInString(lineInfo.Line)
 	lineInfo.MeasureInString = GetMeasuresInString(lineInfo.Line)
 	lineInfo.Source = "dom"
-	if len(lineInfo.IngredientsInString) == 2 && len(lineInfo.IngredientsInString[1].Word) > len(lineInfo.IngredientsInString[0].Word) {
-		lineInfo.IngredientsInString[0] = lineInfo.IngredientsInString[1]
+	// When multiple ingredients are detected, keep only the longest/most specific one
+	// This avoids scoring penalties and selects the better match (e.g., "chocolate chip" over "milk")
+	// Since only IngredientsInString[0] is used downstream, we consolidate to a single element
+	if len(lineInfo.IngredientsInString) > 1 {
+		longestIdx := 0
+		for i := 1; i < len(lineInfo.IngredientsInString); i++ {
+			if len(lineInfo.IngredientsInString[i].Word) > len(lineInfo.IngredientsInString[longestIdx].Word) {
+				longestIdx = i
+			}
+		}
+		lineInfo.IngredientsInString = []WordPosition{lineInfo.IngredientsInString[longestIdx]}
 	}
 
 	if len(lineInfo.LineOriginal) > 50 {
@@ -578,8 +606,8 @@ func scoreLine(line string) (score int, lineInfo LineInfo) {
 	}
 
 	// disfavor long lines
-	if len(lineInfo.Line) > 30 {
-		score = score - (len(lineInfo.Line) - 30)
+	if len(lineInfo.Line) > 40 {
+		score = score - (len(lineInfo.Line) - 40)
 	}
 	if len(lineInfo.Line) > 250 {
 		score = 0
@@ -625,7 +653,8 @@ func (lineInfo *LineInfo) getTotalAmount() (err error) {
 		} else if math.Abs(float64(wps[i].Position-lastPosition)) < 6 {
 			totalAmount += ConvertStringToNumber(wps[i].Word)
 		}
-		lastPosition = wps[i].Position + len(wps[i].Word)
+		// Use rune length since Position is rune-based (from trie)
+		lastPosition = wps[i].Position + len([]rune(wps[i].Word))
 	}
 
 	// If corpus didn't find numbers, try regex (for numbers >20 not in corpus)

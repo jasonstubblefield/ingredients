@@ -79,3 +79,46 @@ The codebase follows a data-driven approach where ingredient recognition is base
 
 - **Performance**: Batch processing tool uses goroutines for parallel processing across all CPU cores
   - Results cached as MD5-hashed JSON files to avoid reprocessing
+
+## Critical Implementation Details
+
+### UTF-8 and String Indexing
+- **IMPORTANT**: The codebase uses a trie-based search (`utils.go:57`) that returns **rune positions**, not byte positions
+- All position-based operations must account for multi-byte UTF-8 characters (like ½, ¾, ¼)
+- `getOtherInBetweenPositions()` in `utils.go:285` correctly uses rune-based indexing to extract comments
+- When debugging position issues, remember: `len(string)` returns bytes, `len([]rune(string))` returns characters
+
+### Minimum Ingredient Count Checks
+The parser has three critical locations that enforce minimum ingredient counts (currently >= 2):
+1. `ingredients.go:396` - Schema.org extraction: `if schemaErr == nil && len(schemaLineInfos) >= 2`
+2. `ingredients.go:416` - JSON extraction: `if errJSON == nil && len(lis) >= 2`
+3. `ingredients.go:434` - DOM parsing: `if score > 2 && len(childrenLineInfo) < 25 && len(childrenLineInfo) >= 2`
+
+### Scoring Algorithm for Ingredient Detection
+- Located in `scoreLine()` function at `ingredients.go:533`
+- Evaluates lines based on: ingredients present (+1), amounts present (+1), measures present (+1), correct ordering (+3)
+- **Length penalty** at `ingredients.go:587`: Lines longer than 40 characters get penalized
+  - This threshold was increased from 30 to 40 to handle verbose ingredient descriptions
+  - Threshold too low = valid ingredients rejected; too high = non-ingredient text included
+- Total score >2 required for a group of 2-25 lines to qualify as an ingredient list
+
+### Comment Extraction Logic
+- Comments are extracted from text between the measure and ingredient positions
+- Process: `getOtherInBetweenPositions(lineInfo.Line, lineInfo.MeasureInString[0], lineInfo.IngredientsInString[0])`
+- Example: "1 cup **cold** butter" → measure="cup" (pos 4), ingredient="butter" (pos 11), comment="cold"
+- Only works when both measure and ingredient are detected in the line
+
+### Parsing Pipeline Details
+The `parseRecipe()` function (`ingredients.go:204`) filters and processes ingredient lines:
+1. Filters out lines that are too short (<3) or too long (>150 for DOM, >250 for schema.org)
+2. Filters out lines containing "serving size" or "yield"
+3. Extracts amount, ingredient name, and measure for each line
+4. Extracts comments between measure and ingredient positions
+5. Normalizes all measurements to cups
+6. Consolidates duplicate ingredients via `ConvertIngredients()`
+
+### Test Expectations
+- Test failures after parser improvements often indicate the tests were written for **buggy behavior**
+- When fixing parser logic, expect to update test expectations to match the corrected output
+- Use `update_tests.go` pattern to regenerate expectations from actual parser output
+- Always verify fixes don't break existing working recipes (regression testing)

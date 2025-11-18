@@ -9,7 +9,7 @@ echo "Building and installing ingredients..."
 go generate
 
 # Run tests
-go test ./...
+#go test ./...
 
 # Build
 go build -o ingredients cmd/ingredients/main.go

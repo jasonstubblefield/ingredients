@@ -79,9 +79,13 @@ func processFile(folderName, pathToFile string) {
 	h := md5.New()
 	io.WriteString(h, pathToFile)
 	fname := fmt.Sprintf("%x.json", h.Sum(nil))
-	if _, err := os.Stat(fname); err == nil {
+	finalPath := path.Join(folderName, fname)
+
+	// Quick check if file already exists (optimization to skip processing)
+	if _, err := os.Stat(finalPath); err == nil {
 		return
 	}
+
 	var r *ingredients.Recipe
 	var err error
 	type Result struct {
@@ -98,11 +102,30 @@ func processFile(folderName, pathToFile string) {
 	re.Ingredients = ing.Ingredients
 	re.Origin = strings.TrimPrefix(pathToFile, folderName)
 	re.Origin = strings.TrimPrefix(re.Origin, "/")
-	if len(ing.Ingredients) > 0 {
+	if len(ing.Ingredients) >= 2 {
 		b, _ := json.MarshalIndent(re, "", "    ")
-		os.WriteFile(path.Join(folderName, fname), b, 0644)
+
+		// Use atomic file creation: write to temp file then rename
+		// This prevents race conditions where multiple goroutines process the same file
+		tempPath := finalPath + ".tmp." + fmt.Sprintf("%d", os.Getpid())
+		if err := os.WriteFile(tempPath, b, 0644); err != nil {
+			log.Errorf("failed to write temp file %s: %s", tempPath, err)
+			return
+		}
+
+		// Atomic rename - if this fails because file exists, another goroutine won the race
+		if err := os.Rename(tempPath, finalPath); err != nil {
+			// File might already exist from another goroutine - clean up temp file
+			os.Remove(tempPath)
+			// Only log if it's not a "file exists" error
+			if !os.IsExist(err) {
+				log.Errorf("failed to rename %s to %s: %s", tempPath, finalPath, err)
+			}
+			return
+		}
+
 		log.Debugf("wrote '%s'\n", pathToFile)
 	} else {
-		log.Debugf("no ingredients for '%s'\n", pathToFile)
+		log.Debugf("insufficient ingredients for '%s': %d (minimum 2 required)\n", pathToFile, len(ing.Ingredients))
 	}
 }

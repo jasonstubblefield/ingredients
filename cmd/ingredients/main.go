@@ -60,8 +60,8 @@ func main() {
 				args = append(args, arg)
 			}
 		}
-		if len(args) < 2 {
-			log.Error("usage: ingredients -stdin [name] [-o output.json]")
+		if len(args) < 1 {
+			log.Error("usage: ingredients -stdin [-o output.json]")
 			os.Exit(1)
 		}
 	} else {
@@ -95,7 +95,7 @@ func main() {
 		args = flag.Args()
 		if len(args) < 1 {
 			log.Error("usage: ingredients [file/url] [-o output.json]")
-			log.Error("       ingredients -stdin [name] [-o output.json]")
+			log.Error("       ingredients -stdin [-o output.json]")
 			os.Exit(1)
 		}
 	}
@@ -110,11 +110,7 @@ func main() {
 
 	// Check if reading from stdin
 	if args[0] == "-stdin" || args[0] == "--stdin" {
-		if len(args) < 2 {
-			log.Error("usage: ingredients -stdin [name] [-o output.json]")
-			os.Exit(1)
-		}
-		origin = args[1]
+		origin = "stdin"
 
 		// Read HTML from stdin
 		htmlBytes, err := io.ReadAll(os.Stdin)
@@ -166,7 +162,7 @@ func main() {
 		if err != nil {
 			r, err = ingredients.NewFromURL(origin)
 			if err != nil {
-				log.Error("usage: ingredients [file/url] [-o output.json]")
+				log.Errorf("failed to fetch/parse URL: %v", err)
 				os.Exit(1)
 			}
 		}
@@ -191,10 +187,10 @@ func main() {
 	}
 
 	// Always output to stdout
-	if len(ing.Ingredients) > 0 {
+	if len(ing.Ingredients) >= 2 {
 		fmt.Println(string(b))
 	} else {
-		log.Error("no ingredients found")
+		log.Errorf("insufficient ingredients found: %d (minimum 2 required)", len(ing.Ingredients))
 		os.Exit(1)
 	}
 
